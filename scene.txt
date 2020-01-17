@@ -1,0 +1,33 @@
+:SCENE:
+
+# define a material called `m_chk`
+:mat: m_chk
+    DIFFUSE
+      "./chk.png"
+
+# create a sun object
+:obj: sun
+    TYPE
+      "dirlight"
+    TRAN
+      xyz=0,0,0
+      rot=0,0,0
+
+# create a checkerboard floor
+:obj: floor
+    TYPE
+      "plane"
+    MAT
+      @m_chk
+    TRAN
+      xyz=0,-.5,0
+      rot=0,0,0
+
+# create the root object with a given material
+:obj: root
+    SUB
+      @sun, @floor
+
+# end of file 
+:END:
+
