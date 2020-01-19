@@ -1,0 +1,3 @@
+[submodule "src/cd_vector.h"]
+	path = src/cd_vector.h
+	url = https://github.com/ChemicalDevelopment/cd_vector.h

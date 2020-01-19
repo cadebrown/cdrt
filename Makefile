@@ -25,10 +25,10 @@ $(cdrt_LIB): $(cdrt_src_o)
 	$(CC) $(CFLAGS) $^ -lm -shared -o $@
 
 $(cdrt_EXE): src/cdrt.c $(cdrt_LIB)
-	$(CC) $(CFLAGS) -Isrc/ $< -L./ -lcdrt -o $@
+	$(CC) $(CFLAGS) -Isrc/ -Isrc/cd_vector.h $< -L./ -lcdrt -o $@
 
 %.o: %.c
-	$(CC) $(CFLAGS) -Isrc/ -fPIC -c $^ -o $@
+	$(CC) $(CFLAGS) -Isrc/ -Isrc/cd_vector.h -fPIC -c $^ -o $@
 
 clean:
 	rm -rf $(wildcard $(cdrt_src_o) $(cdrt_EXE) $(cdrt_LIB))

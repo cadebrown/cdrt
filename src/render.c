@@ -537,7 +537,7 @@ void cdrt_render(img_t dest, scene_t scene) {
             ray_t view_ray = (ray_t){ 
                 TRANSFORM_POS(cam->cache.baked_T), 
                 //v3_unit(local_dir),
-                v3_unit(m4x4_transform_direction(cam->cache.baked_T, local_dir)) 
+                v3_unit(m4T_transform_direction(cam->cache.baked_T, local_dir)) 
             };
 
             // calculate a pixel value
