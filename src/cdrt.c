@@ -24,7 +24,8 @@ int main(int argc, char** argv) {
     mat_t m_chk = cdrt_mat_new_diffuse(t_chk);
 
     // material of red
-    mat_t m_red = cdrt_mat_new_diffuse(t_red);
+    //mat_t m_red = cdrt_mat_new_SR(t_red, t_red, 2.0f);
+    mat_t m_red = cdrt_mat_new_specular(t_red);
 
 
     /* construct object hierarcy */
@@ -39,7 +40,10 @@ int main(int argc, char** argv) {
     obj_t ground = cdrt_obj_new_plane();
     ground->model.mat = m_chk;
     ground->T = m4T_xyz(0.0f, -1.0f, 0.0f);
+    //ground->T = m4x4_mul(m4T_rot_z(3.1415926535*.5), m4T_xyz(0.0f, 4.0f, 0.0f));
     
+    printf("MAT: " M4X4_FMT "\n", M4X4__(ground->T));
+
     // create 2 spheres
 
     obj_t s0 = cdrt_obj_new_sphere();

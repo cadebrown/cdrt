@@ -62,8 +62,8 @@ static inline v3 img_sample(img_t img, float u, float v) {
     float pxf = u, pyf = (1.0f - v);
 
     // convert to (0, 1) range
-    pxf = pxf - (int)pxf;
-    pyf = pyf - (int)pyf;
+    pxf = pxf - floorf(pxf);
+    pyf = pyf - floorf(pyf);
     if (pxf < 0) pxf++;
     if (pyf < 0) pyf++;
 
@@ -150,11 +150,15 @@ static rch_t raycast(scene_t scene, ray_t ray, float max_dist) {
         // either didn't hit, or hit too far away
         if (dist_away <= E0 || dist_away > closest.dist) continue;
 
+
         hit_idx = i;
         hit_type = MODEL_SPHERE;
 
         // set the distance
         closest.dist = dist_away;
+
+        // capture this variable
+        closest.is_inside = is_inside;
 
         // compute the rest in the later block
 
@@ -168,8 +172,11 @@ static rch_t raycast(scene_t scene, ray_t ray, float max_dist) {
         float dist_off = v4_dot(cp, V4(ray.origin.x, ray.origin.y, ray.origin.z, 1.0f));
         if (fabsf(dist_off) < E0) continue;
 
+        // compute the dot product between the normal and the ray direction
+        float dp = v3_dot(cp.xyz, ray.dir);
+
         // now calculate distance away from the view
-        float dist_away = dist_off / v3_dot(cp.xyz, ray.dir);
+        float dist_away = dist_off / dp;
 
         // check and make sure we still care about it
         if (dist_away < E0 || dist_away >= closest.dist) continue;
@@ -179,6 +186,9 @@ static rch_t raycast(scene_t scene, ray_t ray, float max_dist) {
 
         // update the current hit
         closest.dist = dist_away;
+
+        // they are facing the same way
+        closest.is_inside = dp > 0.0f;
 
         // compute the rest in the later block
     }
@@ -226,12 +236,13 @@ static rch_t raycast(scene_t scene, ray_t ray, float max_dist) {
             // set it on the rch
             closest.hit = hit_obj;
 
-            closest.normal = cp.xyz;
+            closest.normal = closest.is_inside ? v3_neg(cp.xyz) : cp.xyz;
             closest.point = v3_add(ray.origin, v3_scale(ray.dir, closest.dist));
 
             //closest.uv = V2_(closest.point.x, closest.point.z);
-            //v3_t localH = m3x3_mul_v3(closest_plane.UVT, closest.point);
-            closest.uv = V2(closest.point.x, closest.point.z);
+            v3 localH = m3x3_mul_v3(scene->cache.ext_planes[hit_idx].UVT, closest.point);
+            closest.uv = V2(localH.x, localH.z);
+            //closest.uv = V2(closest.point.x, closest.point.z);
             //closest.midx = closest_plane.mat;
 
         } else {
@@ -450,15 +461,78 @@ static v3 render_ray(scene_t scene, ray_t primary_ray) {
 
 
 
-        } else if (mat->tex_spec && cur.depth < 8) {
-            // reflective material
-            v3 sample = img_sample(mat->tex_spec, rch.uv.x, rch.uv.y);
+        } else if (cur.depth < 8) {
 
-            // create a reflective ray
-            ray_t ray_refl = (ray_t){ v3_add(rch.point, v3_scale(rch.normal, E2)), v3_refl(cur.ray.dir, rch.normal) };
+            if (mat->tex_spec && mat->tex_refr) {
+                // reflective and refractive material
 
-            // add a render item
-            rstk[++rstk_i] = (struct RenderItem){ cur.depth+1, ray_refl, sample };
+                // refractive material
+                v3 sample = img_sample(mat->tex_refr, rch.uv.x, rch.uv.y);
+
+                // create a reflective ray
+                ray_t ray_refl = (ray_t){ 
+                    v3_add(rch.point, v3_scale(rch.normal, E2)), 
+                    v3_refl(cur.ray.dir, rch.normal) 
+                };
+
+                // create a refraction ray
+                ray_t ray_refr = (ray_t){ 
+                    v3_add(rch.point, v3_scale(rch.normal, rch.is_inside ? -E2 : E2)), 
+                    v3_neg(v3_refract(cur.ray.dir, rch.normal, mat->IOR))
+                };
+
+                // amount of specular color
+                // default to 1 in case of total internal refraction
+                float spec_mix = 1.0f;
+
+                if (!v3_eqe(ray_refr.dir, V3_0, E2)) {
+                //if (rch.is_inside) printf("is_inside: %d\n", (int)rch.is_inside);
+
+                    // compute the specular mix
+                    spec_mix = v3_fresnel(cur.ray.dir, rch.normal, mat->IOR);
+
+                    rstk[++rstk_i] = (struct RenderItem){ cur.depth+1, ray_refr, v3_scale(sample, 1.0f - spec_mix) };
+
+                }
+                rstk[++rstk_i] = (struct RenderItem){ cur.depth+1, ray_refl, v3_scale(sample, spec_mix) };
+
+            } else if (mat->tex_spec) {
+
+                // reflective material
+                v3 sample = img_sample(mat->tex_spec, rch.uv.x, rch.uv.y);
+
+                // create a reflective ray
+                ray_t ray_refl = (ray_t){ v3_add(rch.point, v3_scale(rch.normal, E2)), v3_refl(cur.ray.dir, rch.normal) };
+
+                // add a render item
+                rstk[++rstk_i] = (struct RenderItem){ cur.depth+1, ray_refl, v3_mul(cur.mask, sample) };
+            } else if (mat->tex_refr) {
+                // just refractive 
+
+
+                // refractive material
+                v3 sample = img_sample(mat->tex_refr, rch.uv.x, rch.uv.y);
+
+
+                // create a refraction ray
+                ray_t ray_refr = (ray_t){ 
+                    v3_add(rch.point, v3_scale(rch.normal, rch.is_inside ? -E2 : E2)), 
+                    v3_neg(v3_refract(cur.ray.dir, rch.normal, mat->IOR))
+                };
+
+
+                if (!v3_eqe(ray_refr.dir, V3_0, E2)) {
+                //if (rch.is_inside) printf("is_inside: %d\n", (int)rch.is_inside);
+
+                    // not total internal refraction
+    //            printf("SDF: %f,%f,%f\n", V3__(ray_refr.dir));
+
+                    // add a render item
+
+                }
+                rstk[++rstk_i] = (struct RenderItem){ cur.depth+1, ray_refr, V3_1 };
+            }
+
 
         } else {
             // nothing?

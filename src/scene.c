@@ -73,13 +73,23 @@ static void __recache(scene_t self, obj_t cur, int depth, m4x4 cur_T) {
             self->cache.ext_planes = realloc(self->cache.ext_planes, sizeof(*self->cache.ext_planes) * self->cache.n_planes);
 
             // calculate the normal (get the 'up' direction)
-            self->cache.planes[idx].xyz = cur->cache.baked_T.rows[1].xyz;
+            self->cache.planes[idx].xyz = cur->cache.baked_T.Y.xyz;
 
             // calculate distance from origin along the normal
             self->cache.planes[idx].w = v3_dot(TRANSFORM_POS(cur->cache.baked_T), self->cache.planes[idx].xyz);
-            
+
+            // create a UV mapping object that can be used to get the tex coords
+            m3x3 UVT;
+            UVT.X = cur_T.X.xyz;
+            UVT.Y = cur_T.Y.xyz;
+            UVT.Z = cur_T.Z.xyz;
+            UVT = m3x3_inv(UVT);
+
             // and set external data
             self->cache.ext_planes[idx].src = cur;
+            self->cache.ext_planes[idx].UVT = UVT;
+
+
 
         }
     } else if (cur->type == OBJT_DIRLIGHT) {

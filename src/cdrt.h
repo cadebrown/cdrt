@@ -62,6 +62,9 @@ typedef struct {
     // the surface normal at this point which was hit
     v3 normal;
 
+    // whether or not the hit was on the inside or outside of geometry
+    bool is_inside;
+
 } rch_t;
 
 /* pixel values */
@@ -119,15 +122,33 @@ typedef struct mat_t {
 
 
     // texture for the diffuse coloring
-    // you can check whether the data==NULL to see if diffuse is enabled
+    // you can check whether if ==NULL to see if diffuse is enabled
     img_t tex_diff;
 
     // texture for the specular coloring
-    // you can check whether the data==NULL to see if reflection is enabled
+    // you can check whether if ==NULL to see if reflection is enabled
     img_t tex_spec;
+
+    // texture for refractive coloring
+    // you can check whether if ==NULL to see if refraction is enabled
+    img_t tex_refr;
+
+    // index of refraction
+    float IOR;
 
     
 }* mat_t;
+
+// default index of refraction
+#define IOR_DEFAULT 1.0f
+// IOR of air
+#define IOR_AIR 1.001f
+// IOR of water
+#define IOR_WATER 1.333f
+// IOR of glass
+#define IOR_GLASS 1.69f
+// IOR of diamond
+#define IOR_DIAMOND 2.42f
 
 
 // empty material
@@ -141,6 +162,11 @@ mat_t cdrt_mat_new_diffuse(img_t tex_diff);
 mat_t cdrt_mat_new_specular(img_t tex_spec);
 
 
+// create a new specular material
+mat_t cdrt_mat_new_refractive(img_t tex_refr, float IOR);
+
+// create a Specular+Refractive material
+mat_t cdrt_mat_new_SR(img_t tex_spec, img_t tex_refr, float IOR);
 
 enum {
     // none-type, i.e. is not rendered, and may be used as a spacer
