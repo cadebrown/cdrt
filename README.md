@@ -10,4 +10,7 @@ First, clone this repo. Then, run `git submodule update --init` to update the re
 Now, run `make`. This should create 
 
 
+## Examples
+
+![Example 0](ex0.webp)
 
